@@ -25,39 +25,51 @@ let myPersonaType = "";
 
 // Load Data
 window.addEventListener('load', async () => {
-    // 1. 로컬 스토리지 데이터 먼저 로드 (사용자가 수정하던 것)
+    // 1. 로컬 스토리지 데이터 먼저 로드 (사용자 경험 우선)
     formIds.forEach(id => {
         const val = localStorage.getItem(id);
         if(val) document.getElementById(id).value = val;
     });
 
-    // 2. 봇이 수집한 최신 시장 데이터 가져오기 (덮어쓰기)
+    // 2. 봇이 수집한 최신 시장 데이터 가져오기
+    console.log("🤖 봇 데이터 조회 시작...");
     try {
-        const q = query(collection(db, "market_sentiment"), 
-                        where("type", "==", "bot"), // 봇 데이터만 필터링
-                        orderBy("timestamp", "desc"), 
-                        limit(1));
+        // 인덱스가 필요한 쿼리
+        const q = query(
+            collection(db, "market_sentiment"), 
+            where("type", "==", "bot"), // 봇 데이터 필터링
+            orderBy("timestamp", "desc"), // 최신순 정렬
+            limit(1)
+        );
         
         const snapshot = await getDocs(q);
+        
         if (!snapshot.empty) {
             const botData = snapshot.docs[0].data();
-            console.log("🤖 봇 데이터 로드 완료:", botData);
+            console.log("✅ 봇 데이터 로드 성공:", botData);
 
-            // 폼 ID와 매칭되는 데이터가 있으면 자동 입력
+            // 데이터 적용 및 사용자에게 알림 (선택 사항)
+            let updatedCount = 0;
             formIds.forEach(id => {
-                // 사용자가 방금 입력한 값이 없거나 비어있을 때만 봇 데이터로 채움 (옵션)
-                // 혹은 항상 최신값으로 덮어씌울지 결정
+                // 봇 데이터에 해당 필드가 있고, 유효한 값일 경우만 업데이트
+                // (사용자가 이미 입력한 값이 있어도 최신 데이터로 갱신하는 것이 봇의 목적이므로 덮어씀)
                 if (botData[id] !== undefined && botData[id] !== null) {
                     document.getElementById(id).value = botData[id];
-                    // 로컬 스토리지도 갱신
-                    localStorage.setItem(id, botData[id]);
+                    localStorage.setItem(id, botData[id]); // 로컬 스토리지도 동기화
+                    updatedCount++;
                 }
             });
-            // 알림 (선택)
-            alert("최신 시장 데이터를 자동으로 불러왔습니다.");
+            console.log(`ℹ️ ${updatedCount}개의 필드가 최신 데이터로 업데이트되었습니다.`);
+        } else {
+            console.warn("⚠️ 봇 데이터가 없습니다. (봇이 아직 실행되지 않았거나 조건에 맞는 데이터 없음)");
         }
     } catch (e) {
-        console.warn("봇 데이터 로드 실패 (아직 봇이 실행되지 않았을 수 있음):", e);
+        console.error("❌ 봇 데이터 로드 실패:", e);
+        
+        // 인덱스 에러가 발생했다면 사용자에게 명확히 알려줌
+        if (e.message.includes("index")) {
+            alert("⚠️ [관리자용] 봇 데이터 조회를 위한 Firebase Index가 필요합니다.\n\nF12 개발자 도구 > Console 탭의 링크를 클릭하여 인덱스를 생성해주세요.");
+        }
     }
 
     loadNews();
