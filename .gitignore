@@ -67,3 +67,19 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Mac 시스템 파일
+.DS_Store
+
+# Python 관련
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Firebase 보안 키 (절대 올리면 안 됨!)
+serviceAccountKey.json
+firebase-debug.log
+
+# Node 모듈 (혹시 npm 썼다면)
+node_modules/
