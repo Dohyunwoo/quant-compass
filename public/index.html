@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quant Compass: AI Investment Dashboard</title>
+
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+
+    <meta name="description" content="50+ 퀀트 알고리즘과 집단 지성으로 시장을 분석하는 AI 투자 나침반.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Quant Compass: Market Analytics">
+    <meta property="og:description" content="내 자산과 시장의 온도를 객관적인 데이터로 확인하세요.">
+    <meta property="og:image" content="og-image.png">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="ticker-wrap">
+    <div class="tradingview-widget-container">
+        <div id="tradingview-ticker-target" class="tradingview-widget-container__widget"></div>
+    </div>
+</div>
+
+<div class="container-fluid weather-banner text-center">
+    <h1 id="weatherIcon" style="font-size: 3rem;">📊</h1>
+    <h4 id="weatherText" class="fw-bold m-0 mt-2">오늘 시장의 날씨를 확인하세요</h4>
+    <p class="small opacity-75 mt-1">Data-Driven Investment Insights (50+ Scenarios)</p>
+</div>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-white fw-bold py-2">🔗 데이터 확인 허브 (Click)</div>
+                <div class="card-body">
+                    <small class="text-muted fw-bold d-block mb-1">🌍 매크로 & 경제</small>
+                    <a href="https://kr.investing.com/indices/major-indices" target="_blank" class="link-btn">🇺🇸 지수 확인</a>
+                    <a href="https://kr.investing.com/rates-bonds/u.s.-10-year-bond-yield" target="_blank" class="link-btn">🇺🇸 10년물 금리</a>
+                    <a href="https://kr.investing.com/rates-bonds/u.s.-2-year-bond-yield" target="_blank" class="link-btn">🇺🇸 2년물 금리</a>
+                    <a href="https://kr.investing.com/currencies/us-dollar-index" target="_blank" class="link-btn">💵 달러(DXY)</a>
+                    <a href="https://kr.investing.com/indices/volatility-s-p-500" target="_blank" class="link-btn">😨 VIX 공포지수</a>
+                    <small class="text-muted fw-bold d-block mb-1 mt-2">🪙 코인 & 자산</small>
+                    <a href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT" target="_blank" class="link-btn">🪙 BTC 가격($)</a>
+                    <a href="https://www.tradingview.com/symbols/BTC.D/" target="_blank" class="link-btn">📊 BTC 도미넌스(%)</a>
+                    <a href="https://finance.yahoo.com/quote/GC=F" target="_blank" class="link-btn">🥇 금(Gold)</a>
+                    <a href="https://finance.yahoo.com/quote/CL=F" target="_blank" class="link-btn">🛢 오일(WTI)</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-white fw-bold py-2">💡 지수 입력 가이드</div>
+                <div class="card-body p-0" style="overflow-y: auto; max-height: 300px;">
+                    <div class="accordion accordion-flush" id="guideAccordion">
+                        <div class="accordion-item bg-light">
+                            <h2 class="accordion-header"><button class="accordion-button collapsed py-2 fw-bold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#colScore">💯 Risk Score 로직</button></h2>
+                            <div id="colScore" class="accordion-collapse collapse show"><div class="accordion-body small">기본 50점 시작.<br>+점수: VIX급등, 지수폭락, 역전금리 (위험)<br>-점수: 지수상승, VIX안정 (안전)<br>100점에 가까울수록 시장이 위험합니다.</div></div>
+                        </div>
+                        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#col1">📈 러셀 2000</button></h2><div id="col1" class="accordion-collapse collapse"><div class="accordion-body small">미국 중소형주 지수. 경기에 가장 민감하게 반응하여 '탄광 속 카나리아'로 불립니다.</div></div></div>
+                        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#col2">🤔 장단기 금리 역전</button></h2><div id="col2" class="accordion-collapse collapse"><div class="accordion-body small">10년물보다 2년물 금리가 높아지면 1년 내 경기 침체 확률이 90% 이상이라는 신호입니다.</div></div></div>
+                        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#col4">😨 VIX 40 이상</button></h2><div id="col4" class="accordion-collapse collapse"><div class="accordion-body small">극도의 패닉 상태입니다. 역사적으로 이 구간은 '대바닥'일 확률이 높습니다.</div></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-danger text-white fw-bold py-2 d-flex justify-content-between"><span>📰 News Feed</span><span class="badge bg-white text-danger">Live</span></div>
+                <div class="card-body p-0" id="newsContainer" style="max-height: 300px; overflow-y: auto;"><div class="text-center p-4 text-muted">뉴스를 불러오는 중...</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-5">
+            <div class="card border-primary h-100">
+                <div class="card-header bg-primary text-white fw-bold py-2">✍️ 시장 데이터 입력 (현재가/등락률)</div>
+                <div class="card-body">
+                    <form id="quantForm">
+                        <div class="alert alert-light border small py-2 mb-3">
+                            📌 <strong>매크로/자산</strong>은 <span class="text-primary fw-bold">현재 가격(수치)</span>을 입력하세요.<br>
+                            📌 <strong>주식 지수</strong>는 <span class="text-primary fw-bold">전일 대비 등락률(%)</span>을 입력하세요.
+                        </div>
+
+                        <div class="section-title">1. 매크로 (현재 수치 입력)</div>
+                        <div class="row g-2">
+                            <div class="col-6"><div class="input-group input-group-sm"><span class="input-group-text currency-badge bg-light">%</span><input type="number" id="us10y" class="form-control" step="0.01" placeholder="미 10년물"></div></div>
+                            <div class="col-6"><div class="input-group input-group-sm"><span class="input-group-text currency-badge bg-light">%</span><input type="number" id="us2y" class="form-control" step="0.01" placeholder="미 2년물"></div></div>
+                            <div class="col-6 mt-1"><div class="input-group input-group-sm"><span class="input-group-text currency-badge">😨</span><input type="number" id="vix" class="form-control" step="0.1" placeholder="VIX"></div></div>
+                            <div class="col-6 mt-1"><div class="input-group input-group-sm"><span class="input-group-text currency-badge">💵</span><input type="number" id="dxy" class="form-control" step="0.01" placeholder="DXY"></div></div>
+                        </div>
+
+                        <div class="section-title">2. 자산 (현재 가격($) 입력)</div>
+                        <div class="row g-2">
+                            <div class="col-6"><div class="input-group input-group-sm"><span class="input-group-text currency-badge">$</span><input type="number" id="btc" class="form-control" placeholder="BTC 가격"></div></div>
+                            <div class="col-6"><div class="input-group input-group-sm"><span class="input-group-text currency-badge">%</span><input type="number" id="btcDom" class="form-control" step="0.1" placeholder="BTC 점유율"></div></div>
+                            <div class="col-6 mt-1"><div class="input-group input-group-sm"><span class="input-group-text currency-badge">🥇</span><input type="number" id="gold" class="form-control" step="0.1" placeholder="금($)"></div></div>
+                            <div class="col-6 mt-1"><div class="input-group input-group-sm"><span class="input-group-text currency-badge">🛢</span><input type="number" id="wti" class="form-control" step="0.1" placeholder="유가($)"></div></div>
+                        </div>
+
+                        <div class="section-title text-primary">3. 주식 지수 (전일대비 % 입력)</div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇺🇸 S&P500</label><input type="number" id="idx_spx" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇺🇸 나스닥</label><input type="number" id="idx_ndx" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇺🇸 다우존스</label><input type="number" id="idx_dji" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇺🇸 러셀2000</label><input type="number" id="idx_rut" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇰🇷 코스피</label><input type="number" id="idx_kospi" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇰🇷 코스닥</label><input type="number" id="idx_kosdaq" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇯🇵 닛케이</label><input type="number" id="idx_nikkei" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                            <div class="col-6 col-md-3"><label class="small text-muted d-block text-center">🇪🇺 유로스톡스</label><input type="number" id="idx_euro" class="form-control form-control-sm percent-input text-center" step="0.1"></div>
+                        </div>
+
+                        <div class="section-title">4. 나의 상태 (My Status)</div>
+                        <div class="d-flex align-items-center mb-2">
+                            <label class="small text-muted me-2" style="min-width:60px">투자비중</label>
+                            <input type="range" id="myPosition" class="form-range flex-grow-1 me-2" min="0" max="100" value="50" oninput="document.getElementById('posVal').innerText=this.value+'%'">
+                            <span class="badge bg-dark" id="posVal">50%</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <label class="small text-muted me-2" style="min-width:60px">시장전망</label>
+                            <select id="myOutlook" class="form-select form-select-sm">
+                                <option value="1">😱 폭락 (대공황)</option>
+                                <option value="2">📉 하락 (약세)</option>
+                                <option value="3" selected>😐 중립 (관망)</option>
+                                <option value="4">📈 상승 (강세)</option>
+                                <option value="5">🚀 폭등 (불장)</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-dark w-100 mt-4 py-2 fw-bold shadow" onclick="runAnalysisAndSubmit()">🚀 분석 실행 (Save & Compare)</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7" id="reportSection" style="display:none;">
+            
+            <div class="card bg-white border-primary mb-3">
+                <div class="card-body py-2 px-3 d-flex align-items-center">
+                    <span id="personaIcon" style="font-size: 2.5rem; margin-right: 15px;">🤔</span>
+                    <div>
+                        <small class="text-muted fw-bold">YOUR INVESTMENT PERSONA</small>
+                        <h5 id="personaTitle" class="fw-bold mb-0">분석중...</h5>
+                    </div>
+                    <div class="ms-auto text-end">
+                        <small class="text-muted">RISK SCORE</small>
+                        <h5 id="riskScoreDisp" class="fw-bold mb-0 text-primary display-6">0</h5>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3 border-secondary">
+                <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between">
+                    <span>📉 Market Change (vs Yesterday Avg)</span>
+                    <span class="badge bg-light text-dark">Auto-Calc</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped mb-0 change-table text-center">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Current</th>
+                                <th>Yesterday Avg</th>
+                                <th>Change (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="changeTableBody">
+                            <tr><td colspan="4" class="text-muted py-3">데이터 계산 중...</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="p-2 text-end small text-muted fst-italic">* 어제(24h) 집단 지성 평균값 대비 변동률입니다.</div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>⚡ AI Quant Insights (50+ Scenarios)</span><span class="badge bg-danger" id="insightCount">0 Signals</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="insight-container">
+                        <ul class="list-group list-group-flush" id="quantList"></ul>
+                        <div class="p-3">
+                            <div class="action-box">
+                                <div class="action-title">🤖 AI Action Plan</div>
+                                <div id="aiActionText" class="small text-dark">데이터를 입력하면 AI가 상황에 맞는 행동 지침을 제안합니다.</div>
+                            </div>
+                            <p class="disclaimer">※ 본 결과는 시뮬레이션이며 투자의 책임은 본인에게 있습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3 border-success">
+                <div class="card-header bg-success text-white fw-bold">👥 군중 심리 분석 (Crowd Profiling)</div>
+                <div class="card-body">
+                    <div class="alert alert-light border-success text-center mb-3">
+                        <span id="crowdComment">데이터를 분석 중입니다...</span>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0 border-end">
+                            <h6 class="small text-muted fw-bold text-center mb-2">투자자 유형 분포 (Top Types)</h6>
+                            <div style="width: 200px; margin: 0 auto;">
+                                <canvas id="crowdTypeChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex flex-column justify-content-center">
+                            <div class="crowd-stat-box mb-2">
+                                <div class="crowd-stat-val text-primary" id="totalParticipants">0명</div>
+                                <div class="crowd-stat-label">실시간 참여자</div>
+                            </div>
+                            <div class="crowd-stat-box mb-2">
+                                <div class="crowd-stat-val text-danger" id="avgPosDisplay">0%</div>
+                                <div class="crowd-stat-label">평균 주식 비중</div>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                <div id="bullBar" class="progress-bar bg-danger" style="width: 50%">Bull 50%</div>
+                                <div id="bearBar" class="progress-bar bg-primary" style="width: 50%">Bear 50%</div>
+                            </div>
+                            <div class="d-flex justify-content-between small text-muted mt-1">
+                                <span>상승론</span><span>하락론</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body p-2">
+                            <h6 class="text-center small text-muted fw-bold mt-2">MARKET RISK RADAR</h6>
+                            <div style="max-width: 400px; margin: 0 auto;"><canvas id="radarChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="script.js"></script>
+<script src="ticker.js"></script>
+
+</body>
+</html>
