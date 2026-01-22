@@ -14,7 +14,7 @@ jobs:
       # [핵심] script.js 안에 있는 __FIREBASE_API_KEY__를 실제 비밀키로 교체
       - name: Inject API Key
         run: |
-          sed -i 's/__FIREBASE_API_KEY__/${{ secrets.FIREBASE_WEB_API_KEY }}/g' script.js
+          sed -i 's/__FIREBASE_API_KEY__/${{ secrets.FIREBASE_WEB_API_KEY }}/g' public/script.js
 
       # Firebase Hosting 배포
       - uses: FirebaseExtended/action-hosting-deploy@v0
