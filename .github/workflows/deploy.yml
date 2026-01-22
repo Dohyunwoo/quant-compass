@@ -1,0 +1,25 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 코드가 올라오면 자동 실행
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # [핵심] script.js 안에 있는 __FIREBASE_API_KEY__를 실제 비밀키로 교체
+      - name: Inject API Key
+        run: |
+          sed -i 's/__FIREBASE_API_KEY__/${{ secrets.FIREBASE_WEB_API_KEY }}/g' script.js
+
+      # Firebase Hosting 배포
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_CREDENTIALS }} # 봇 만들때 썼던 그 키 그대로 사용 가능
+          channelId: live
+          projectId: quant-compass

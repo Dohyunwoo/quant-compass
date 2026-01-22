@@ -4,7 +4,7 @@ import { generateInsights } from "./logic.js";
 
 // 1. FIREBASE CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyD32O7mmTQi1rNiH4QC3-dBbqAm36u5Oxg",
+  apiKey: "__FIREBASE_API_KEY__",
   authDomain: "quant-compass.firebaseapp.com",
   projectId: "quant-compass",
   storageBucket: "quant-compass.firebasestorage.app",
@@ -65,24 +65,81 @@ window.addEventListener('load', async () => {
         }
     } catch (e) {
         console.error("❌ 봇 데이터 로드 실패:", e);
-        
-        // 인덱스 에러가 발생했다면 사용자에게 명확히 알려줌
-        if (e.message.includes("index")) {
-            alert("⚠️ [관리자용] 봇 데이터 조회를 위한 Firebase Index가 필요합니다.\n\nF12 개발자 도구 > Console 탭의 링크를 클릭하여 인덱스를 생성해주세요.");
-        }
     }
 
     loadNews();
+
+    await fetchCrowdAndDrawChart();
 });
 
 document.getElementById('quantForm').addEventListener('input', (e) => {
     if(e.target.id) localStorage.setItem(e.target.id, e.target.value);
 });
 
+function checkDailyLimit() {
+    const today = new Date().toDateString(); // 예: "Tue Jan 22 2026"
+    
+    // 로컬 스토리지에서 기록 가져오기
+    let record = JSON.parse(localStorage.getItem('daily_submit_log'));
+
+    // 기록이 없거나 날짜가 다르면(다음날이 되면) 리셋
+    if (!record || record.date !== today) {
+        record = { date: today, count: 0 };
+        localStorage.setItem('daily_submit_log', JSON.stringify(record));
+    }
+
+    return record;
+}
+
 // Main Execution
 window.runAnalysisAndSubmit = async function() {
     const btn = document.querySelector('button[onclick="runAnalysisAndSubmit()"]');
     const originalText = btn.innerText;
+
+    const usage = checkDailyLimit();
+    if (usage.count >= 5) {
+        alert("⛔ 하루 5회 입력 한도를 초과했습니다.\n\n불필요한 DB 비용을 막기 위해 횟수를 제한하고 있습니다.\n내일 다시 참여해 주세요!");
+        return; // 여기서 함수 강제 종료 (DB 저장 안 함)
+    }
+
+    // 2. [수정됨] 유효성 검사 (미 2년물 제외 모든 필드 체크)
+    let missing = [];
+    
+    // 에러 메시지용 라벨 맵핑
+    const fieldLabels = {
+        'us10y': '미 10년물 금리',
+        'vix': 'VIX 공포지수',
+        'dxy': '달러 인덱스',
+        'btc': '비트코인 가격',
+        'btcDom': 'BTC 도미넌스',
+        'gold': '금 선물',
+        'wti': 'WTI 유가',
+        'idx_spx': 'S&P 500',
+        'idx_ndx': '나스닥',
+        'idx_dji': '다우존스',
+        'idx_rut': '러셀 2000',
+        'idx_kospi': '코스피',
+        'idx_kosdaq': '코스닥',
+        'idx_nikkei': '닛케이',
+        'idx_euro': '유로스톡스'
+    };
+
+    formIds.forEach(id => {
+        // 검사 제외 대상: us2y(사용자 요청), myPosition(슬라이더), myOutlook(셀렉트박스)
+        if (id === 'us2y' || id === 'myPosition' || id === 'myOutlook') return;
+
+        const val = document.getElementById(id).value;
+        // 값이 없거나 공백만 있는 경우
+        if (!val || val.trim() === "") {
+            // 라벨이 있으면 라벨명, 없으면 ID 그대로 표시
+            missing.push(fieldLabels[id] || id);
+        }
+    });
+
+    if (missing.length > 0) {
+        alert(`⚠️ 다음 데이터가 입력되지 않았습니다:\n\n[ ${missing.join(', ')} ]\n\n정확한 분석을 위해 빈칸을 모두 채워주세요.\n(미 2년물은 제외 가능)`);
+        return; // 함수 강제 종료
+    }
     
     btn.innerText = "⏳ 50+ 시나리오 분석 중...";
     btn.disabled = true;
@@ -148,9 +205,13 @@ async function saveUserData(data) {
     try {
         await addDoc(collection(db, "market_sentiment"), {
             ...data, 
+            type: 'human', // ✅ [핵심] 사람이 입력한 데이터임을 명시!
             timestamp: serverTimestamp()
         });
-    } catch (e) { console.error("Save Error:", e); alert("DB 저장 실패 (Firebase Rules 확인)"); }
+        console.log("✅ User Data Saved (Type: Human)");
+    } catch (e) { 
+        console.error("Save Error:", e); 
+    }
 }
 
 async function fetchYesterdayAverage() {
@@ -242,7 +303,6 @@ function renderChangeTable(current, prev) {
 // [핵심] 군중 분석 & 도넛 차트
 async function fetchCrowdAndDrawChart() {
     try {
-        // 1. 데이터를 넉넉하게 가져옵니다 (봇 데이터가 섞여 있으므로 200개보다 좀 더 가져와도 됨)
         const q = query(collection(db, "market_sentiment"), orderBy("timestamp", "desc"), limit(300));
         const snapshot = await getDocs(q);
         
@@ -253,21 +313,22 @@ async function fetchCrowdAndDrawChart() {
             "🦁 역발상": 0, "⚖️ 수호자": 0
         };
         
-        // 유효한 사람 데이터 개수 카운트용
         let humanCount = 0; 
 
         snapshot.forEach(doc => {
             const data = doc.data();
 
-            // [중요] 봇 데이터이거나, 포지션 정보가 없는 데이터는 통계에서 제외!
-            if (data.type === 'bot' || data.pos === undefined || data.pos === null) {
-                return; // 건너뛰기 (continue)
+            // [수정 포인트 1] 필드명 수정 (pos -> myPosition)
+            // 봇이거나, 사람 데이터인데 투자비중(myPosition)이 없으면 건너뜀
+            if (data.type === 'bot' || data.myPosition === undefined || data.myPosition === null) {
+                return; 
             }
 
-            humanCount++; // 사람일 때만 카운트 증가
+            humanCount++; 
 
-            const pos = data.pos;
-            const out = data.outlook || 3;
+            // [수정 포인트 2] 데이터를 읽어오는 변수명 일치시키기
+            const pos = data.myPosition; // data.pos (X) -> data.myPosition (O)
+            const out = data.myOutlook || 3; // data.outlook (X) -> data.myOutlook (O)
             
             totalPos += pos;
             if(out >= 4) bullCount++;
@@ -287,13 +348,12 @@ async function fetchCrowdAndDrawChart() {
             else typeCounts["⚖️ 수호자"]++;
         });
 
-        // 데이터가 하나도 없을 경우 (사람 데이터가 0개)
         if (humanCount === 0) {
             document.getElementById('crowdComment').innerText = "아직 참여한 투자자가 없습니다.";
+            // 차트나 그래프를 0으로 초기화하는 로직이 필요하다면 여기에 추가
             return;
         }
 
-        // 통계 업데이트 (total 대신 humanCount로 나눔)
         const avgPos = Math.round(totalPos / humanCount);
         const bullPct = Math.round((bullCount / humanCount) * 100);
         const bearPct = Math.round((bearCount / humanCount) * 100);
@@ -305,7 +365,6 @@ async function fetchCrowdAndDrawChart() {
         document.getElementById('bearBar').style.width = bearPct + "%";
         document.getElementById('bearBar').innerText = `Bear ${bearPct}%`;
 
-        // 나의 위치 코멘트
         let myCount = 0;
         for (const [key, value] of Object.entries(typeCounts)) {
             if (myPersonaType.includes(key.split(' ')[1])) {
