@@ -21,24 +21,26 @@ const formIds = ['us10y', 'us2y', 'vix', 'dxy', 'btc', 'btcDom', 'gold', 'wti',
                  'idx_kospi', 'idx_kosdaq', 'idx_nikkei', 'idx_euro',
                  'myPosition', 'myOutlook'];
 
-let myPersonaType = ""; 
+let myPersonaType = "";
 
 // Load Data
 window.addEventListener('load', async () => {
-    // 1. 로컬 스토리지 데이터 먼저 로드 (사용자 경험 우선)
+    // 1. 로컬 스토리지 데이터 먼저 로드
     formIds.forEach(id => {
         const val = localStorage.getItem(id);
+        // [수정] us2y가 0이면 로드하지 않음 (Placeholder 유지를 위해)
+        if (id === 'us2y' && (val === '0' || val === 0)) return;
+        
         if(val) document.getElementById(id).value = val;
     });
 
     // 2. 봇이 수집한 최신 시장 데이터 가져오기
     console.log("🤖 봇 데이터 조회 시작...");
     try {
-        // 인덱스가 필요한 쿼리
         const q = query(
             collection(db, "market_sentiment"), 
-            where("type", "==", "bot"), // 봇 데이터 필터링
-            orderBy("timestamp", "desc"), // 최신순 정렬
+            where("type", "==", "bot"), 
+            orderBy("timestamp", "desc"), 
             limit(1)
         );
         
@@ -48,27 +50,26 @@ window.addEventListener('load', async () => {
             const botData = snapshot.docs[0].data();
             console.log("✅ 봇 데이터 로드 성공:", botData);
 
-            // 데이터 적용 및 사용자에게 알림 (선택 사항)
             let updatedCount = 0;
             formIds.forEach(id => {
-                // 봇 데이터에 해당 필드가 있고, 유효한 값일 경우만 업데이트
-                // (사용자가 이미 입력한 값이 있어도 최신 데이터로 갱신하는 것이 봇의 목적이므로 덮어씀)
+                // [수정] us2y는 봇 데이터가 0일 경우 입력하지 않고 패스 (Placeholder 보이게)
+                if (id === 'us2y' && botData[id] === 0) return;
+
                 if (botData[id] !== undefined && botData[id] !== null) {
                     document.getElementById(id).value = botData[id];
-                    localStorage.setItem(id, botData[id]); // 로컬 스토리지도 동기화
+                    localStorage.setItem(id, botData[id]);
                     updatedCount++;
                 }
             });
             console.log(`ℹ️ ${updatedCount}개의 필드가 최신 데이터로 업데이트되었습니다.`);
         } else {
-            console.warn("⚠️ 봇 데이터가 없습니다. (봇이 아직 실행되지 않았거나 조건에 맞는 데이터 없음)");
+            console.warn("⚠️ 봇 데이터가 없습니다.");
         }
     } catch (e) {
         console.error("❌ 봇 데이터 로드 실패:", e);
     }
 
     loadNews();
-
     await fetchCrowdAndDrawChart();
 });
 
@@ -77,17 +78,13 @@ document.getElementById('quantForm').addEventListener('input', (e) => {
 });
 
 function checkDailyLimit() {
-    const today = new Date().toDateString(); // 예: "Tue Jan 22 2026"
-    
-    // 로컬 스토리지에서 기록 가져오기
+    const today = new Date().toDateString();
     let record = JSON.parse(localStorage.getItem('daily_submit_log'));
 
-    // 기록이 없거나 날짜가 다르면(다음날이 되면) 리셋
     if (!record || record.date !== today) {
         record = { date: today, count: 0 };
         localStorage.setItem('daily_submit_log', JSON.stringify(record));
     }
-
     return record;
 }
 
@@ -96,73 +93,69 @@ window.runAnalysisAndSubmit = async function() {
     const btn = document.querySelector('button[onclick="runAnalysisAndSubmit()"]');
     const originalText = btn.innerText;
 
+    // 1. 일일 제한 체크
     const usage = checkDailyLimit();
     if (usage.count >= 5) {
         alert("⛔ 하루 5회 입력 한도를 초과했습니다.\n\n불필요한 DB 비용을 막기 위해 횟수를 제한하고 있습니다.\n내일 다시 참여해 주세요!");
-        return; // 여기서 함수 강제 종료 (DB 저장 안 함)
+        return; 
     }
 
-    // 2. [수정됨] 유효성 검사 (미 2년물 제외 모든 필드 체크)
+    // 2. 유효성 검사 (Validation) - 여기서 빈 값을 1차로 막아줍니다.
     let missing = [];
-    
-    // 에러 메시지용 라벨 맵핑
     const fieldLabels = {
-        'us10y': '미 10년물 금리',
-        'vix': 'VIX 공포지수',
-        'dxy': '달러 인덱스',
-        'btc': '비트코인 가격',
-        'btcDom': 'BTC 도미넌스',
-        'gold': '금 선물',
-        'wti': 'WTI 유가',
-        'idx_spx': 'S&P 500',
-        'idx_ndx': '나스닥',
-        'idx_dji': '다우존스',
-        'idx_rut': '러셀 2000',
-        'idx_kospi': '코스피',
-        'idx_kosdaq': '코스닥',
-        'idx_nikkei': '닛케이',
-        'idx_euro': '유로스톡스'
+        'us10y': '미 10년물 금리', 'vix': 'VIX 공포지수', 'dxy': '달러 인덱스', 'btc': '비트코인 가격',
+        'btcDom': 'BTC 도미넌스', 'gold': '금 선물', 'wti': 'WTI 유가',
+        'idx_spx': 'S&P 500', 'idx_ndx': '나스닥', 'idx_dji': '다우존스', 'idx_rut': '러셀 2000',
+        'idx_kospi': '코스피', 'idx_kosdaq': '코스닥', 'idx_nikkei': '닛케이', 'idx_euro': '유로스톡스'
     };
 
     formIds.forEach(id => {
-        // 검사 제외 대상: us2y(사용자 요청), myPosition(슬라이더), myOutlook(셀렉트박스)
+        // [검사 제외] us2y는 비워도 되므로 검사하지 않음
         if (id === 'us2y' || id === 'myPosition' || id === 'myOutlook') return;
 
         const val = document.getElementById(id).value;
-        // 값이 없거나 공백만 있는 경우
         if (!val || val.trim() === "") {
-            // 라벨이 있으면 라벨명, 없으면 ID 그대로 표시
             missing.push(fieldLabels[id] || id);
         }
     });
 
     if (missing.length > 0) {
         alert(`⚠️ 다음 데이터가 입력되지 않았습니다:\n\n[ ${missing.join(', ')} ]\n\n정확한 분석을 위해 빈칸을 모두 채워주세요.\n(미 2년물은 제외 가능)`);
-        return; // 함수 강제 종료
+        return; 
     }
     
+    // ---------------------------------------------------------
     btn.innerText = "⏳ 50+ 시나리오 분석 중...";
     btn.disabled = true;
     document.getElementById('reportSection').style.display = 'block';
-    
-    // 차트 초기화
     document.getElementById('crowdComment').innerText = "군중 데이터를 불러오는 중입니다...";
 
     try {
-        // 1. 데이터 수집
+        // 3. 데이터 수집 (Data Collection) - [수정된 부분]
         const d = {};
-        formIds.forEach(id => d[id] = parseFloat(document.getElementById(id).value) || 0);
+        formIds.forEach(id => {
+            const val = document.getElementById(id).value;
+
+            if (id === 'us2y') {
+                // [예외 적용] us2y만 비어있으면 0으로 처리
+                d[id] = val ? parseFloat(val) : 0.0;
+            } else {
+                // [나머지] 입력된 값 그대로 변환 (위의 유효성 검사를 통과했으므로 값은 무조건 있음)
+                d[id] = parseFloat(val);
+            }
+        });
+        
         d.myPosition = parseInt(document.getElementById('myPosition').value);
         d.myOutlook = parseInt(document.getElementById('myOutlook').value);
 
-        // 2. DB 저장
+        // 4. DB 저장
         await saveUserData(d);
 
-        // 3. 어제 데이터 가져오기 및 등락률 계산
+        // 5. 어제 데이터 가져오기 및 등락률 계산
         const yesterdayData = await fetchYesterdayAverage();
         renderChangeTable(d, yesterdayData);
 
-        // 4. 로직 실행 (logic.js)
+        // 6. 로직 실행 (logic.js)
         const analysisResult = generateInsights(d, yesterdayData);
         
         // 결과 렌더링
@@ -186,8 +179,13 @@ window.runAnalysisAndSubmit = async function() {
         // 차트 그리기
         drawCharts(d, analysisResult.riskScore);
 
-        // 5. 군중 데이터 가져오기
+        // 7. 군중 데이터 가져오기
         await fetchCrowdAndDrawChart();
+
+        // 8. 성공 시 카운트 증가
+        usage.count++;
+        localStorage.setItem('daily_submit_log', JSON.stringify(usage));
+        console.log(`✅ 오늘의 입력 횟수: ${usage.count}/5`);
 
     } catch (error) {
         console.error("Error:", error);
@@ -205,7 +203,7 @@ async function saveUserData(data) {
     try {
         await addDoc(collection(db, "market_sentiment"), {
             ...data, 
-            type: 'human', // ✅ [핵심] 사람이 입력한 데이터임을 명시!
+            type: 'human', 
             timestamp: serverTimestamp()
         });
         console.log("✅ User Data Saved (Type: Human)");
